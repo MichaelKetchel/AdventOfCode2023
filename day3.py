@@ -1,13 +1,5 @@
-# This is a sample Python script.
-import functools
-import re
-import sys
 from collections import defaultdict
-from pprint import pprint
 
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 def part1():
     def adjacent_symbol(data, x, y):
@@ -94,8 +86,6 @@ def part2():
 # 84633828 too low
 # 86841457
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     part2()
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
