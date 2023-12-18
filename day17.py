@@ -1,143 +1,72 @@
 import heapq
-
 from queue import PriorityQueue
-
 from colorama import just_fix_windows_console, Fore, Back, Style
+import numpy
+import heapq
+from queue import PriorityQueue, Queue
+
 just_fix_windows_console()
 
-the_data = []
-class Node(object):
-    def __init__(self, value, x, y, direction=None, steps=0):
-        self.value = value
-        self.x = x
-        self.y = y
-        self.direction = direction
-        self.steps = steps
-        self.outgoing = {}  # outgoing edges (to other nodes)
-        self.incoming = {}  # incoming edges (from other nodes)
-        # self.visited = False
 
-    def connect_to(self, node, cost=1):
-        if isinstance(node, Node):
-            if self != node:
-                self.outgoing[node] = cost
-                node.incoming[self] = cost
-
-    def __str__(self):
-        incoming_string = [f"{a.value}->s: {self.incoming[a]}" for a in self.incoming.keys()]
-        outgoing_string = [f"s->{a.value}: {self.outgoing[a]}" for a in self.outgoing.keys()]
-        return f"Node: {self.value}:\n\t\tIncoming: {incoming_string}\n\t\tOutgoing: {outgoing_string}, "
-        # return f"Node: {self.value}| Incoming: {len(self.incoming)} Outgoing: {len(self.outgoing)}"
-        # return f"Node: {self.value}| Incoming: {self.incoming.keys()} Outgoing: {(self.outgoing.keys())}"
-
-class Graph(object):
-    def __init__(self):
-        self.nodes = {}  # key: value is name of the node : Node object
-
-    def nodes_at(self, x, y):
-        return list(filter(lambda node: node.x == x and node.y == y, self.nodes.values()))
-
-    def node_at(self, x, y):
-        return self.nodes_at(x,y)[0]
-
-    def add_node(self, name, x, y, direction=None, steps=0):
-        if not name in self.nodes:
-            new_node = Node(name, x, y, direction, steps)
-            self.nodes[name] = new_node
-
-        return self.nodes[name]  # return the node (not yet connected to any other nodes)
-
-    def add_edge(self, from_node, to_node, cost=1):
-        if isinstance(from_node, Node) and isinstance(to_node, Node):
-            from_node.connect_to(to_node, cost)  # connect nodes (and allow for bidirectional links)
-
-    # def dijkstra(graph, source):
-    #     distances = {
-    #         source: 0
-    #     }
-    #
-
-    def shortest_path(self, start, end):
-        arbitrary_index = 0
-        graph = self.nodes
-        queue = [(0, arbitrary_index, start)]
-        heapq.heapify(queue)
-        distances = {node: float('infinity') for node in graph}
-        distances[start.value] = 0
-        paths = {start.value: []}
-
-        while queue:
-            (curr_distance, _, curr_vertex) = heapq.heappop(queue)
-
-            print_in_technicolor(the_data, paths[curr_vertex.value], paths[curr_vertex.value])
-            if curr_distance != distances[curr_vertex.value]:
-                continue
-            for neighbor, weight in graph[curr_vertex.value].outgoing.items():
-                old_distance = distances[neighbor.value]
-                new_distance = curr_distance + weight
-                if new_distance < old_distance:
-                    arbitrary_index += 1
-                    heapq.heappush(queue, (new_distance, arbitrary_index, neighbor))
-                    distances[neighbor.value] = new_distance
-                    paths[neighbor.value] = paths[curr_vertex.value] + [neighbor.value]
-        return distances[end.value], paths[end.value]
+def reconstruct_path(came_from, current):
+    if came_from[current] is not None:
+        res = reconstruct_path(came_from, came_from[current])
+        res.append(current)
+        return res
+    else:
+        return [current]
 
 
-    def shortest_path_but_pain(self, start, end):
-        global the_data
-        arbitrary_index = 0
-        graph = self.nodes
-        queue = [(0, arbitrary_index, start)]
-        heapq.heapify(queue)
-        distances = {node: float('infinity') for node in graph}
-        distances[start.value] = 0
-        paths = {start.value: []}
-
-        x_steps = 0
-        y_steps = 0
-        last_node = Node('fake', -1, -1)
-
-        while queue:
-            (curr_distance, _, current_node) = heapq.heappop(queue)
-            if curr_distance != distances[current_node.value]:
-                continue
-
-            last_steps = [self.node_at(*point) for point in paths[current_node.value][-3:]]
-            for neighbor, weight in graph[current_node.value].outgoing.items():
-                if len(last_steps) >= 3 and (
-                        all(x.x == neighbor.x for x in last_steps) or all(x.y == neighbor.y for x in last_steps)):
-                    continue
-
-                old_distance = distances[neighbor.value]
-                # new_distance = curr_distance + (9-weight)
-                new_distance = curr_distance + weight
-
-                if new_distance < old_distance:
-                    arbitrary_index += 1
-                    heapq.heappush(queue, (new_distance, arbitrary_index, neighbor))
-                    distances[neighbor.value] = new_distance
-                    paths[neighbor.value] = paths[current_node.value] + [neighbor.value]
-            last_node = current_node
-        return distances[end.value], paths[end.value]
+def get_last_n_steps(came_from, current, depth=3):
+    if came_from[current] is not None and depth > 0:
+        res = get_last_n_steps(came_from, came_from[current], depth=depth - 1)
+        res.append(current)
+        return res
+    else:
+        return [current]
 
 
+def check_history(matrix, came_from, current, depth=3, x=0, y=0):
+    if came_from[current] is not None and x < depth and y < depth:
+        if came_from[current][0] == current[0]:
+            x += 1
+        else:
+            x = 0
+        if came_from[current][1] == current[1]:
+            y += 1
+        else:
+            y = 0
+        return check_history(matrix, came_from, came_from[current], depth, x=x, y=y)
+    else:
+        return x < depth and y < depth
 
 
-    def __str__(self):
-        node_strings = '\n'.join([f"\t {str(node)}" for node in self.nodes.values()])
-        return f"Graph:\n {node_strings}"
+def get_neighbors(r, c, matrix):
+    neighbors = []
+    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < len(matrix) and 0 <= nc < len(matrix[0]):
+            neighbors.append((nr, nc, dr, dc))
+    return neighbors
 
 
+def sum_path(matrix, path):
+    total = 0
+    for step in path:
+        x, y = step
+        # print(matrix[y][x], end='')
+        total += matrix[y][x]
+    print()
+    return total
 
-def print_in_technicolor(data, path, node_of_interest=(-1,-1)):
 
-    clean_path = [a[:2] for a in path]
+def print_in_technicolor(data, path, node_of_interest=(-1, -1)):
     for row_index, row in enumerate(data):
         for col_index, value in enumerate(row):
-            if (row_index, col_index) == node_of_interest[:2]:
+            if (row_index, col_index) == node_of_interest:
                 print(Back.RED + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
                 continue
-            if (row_index, col_index) in clean_path:
+            if (row_index, col_index) in path:
                 print(Back.GREEN + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
                 continue
             print(str(value) + " ", end='')
@@ -145,13 +74,14 @@ def print_in_technicolor(data, path, node_of_interest=(-1,-1)):
     print()
 
 
-def print_in_arrows(data, path, node_of_interest=(-1,-1)):
+def print_in_arrows(data, path, node_of_interest=(-1, -1)):
+    # in (row, column)
     arrow_map = {
-        None: 'X',
-        'u':'^',
-        'r':'>',
-        'd':'v',
-        'l':'<',
+        (0, 0): 'X',
+        (1, 0): 'v',
+        (-1, 0): '^',
+        (0, 1): '>',
+        (0, -1): '<',
     }
     clean_path = [a[:2] for a in path]
     for row_index, row in enumerate(data):
@@ -162,121 +92,100 @@ def print_in_arrows(data, path, node_of_interest=(-1,-1)):
             if (row_index, col_index) in clean_path:
                 index = clean_path.index((row_index, col_index))
                 path_entry = path[index]
-                print(Back.GREEN + Fore.BLACK + arrow_map[path_entry[2]] + Style.RESET_ALL + " ", end='')
+                print(Back.GREEN + Fore.BLACK + arrow_map[tuple(path_entry[2:4])] + Style.RESET_ALL + " ", end='')
                 continue
             print(str(value) + " ", end='')
         print()
     print()
 
-def sum_path(matrix, path):
-    total = 0
-    for step in path:
-        x, y = step[:2]
-        total += matrix[y][x]
-    return total
-#
-# def part1b():
-#     # with open("input/day17.sample.txt") as inputfile:
-#     with open("input/day17.txt") as inputfile:
-#         the_graph = Graph()
-#         the_data = [[int(x) for x in y] for y in [x.strip() for x in inputfile]]
-#
-#         print(solve(the_data))
-
-
-def get_neighbors(x, y, matrix):
-    neighbors = []
-    for dx, dy, d in [(-1, 0, 'l'), (1, 0, 'r'), (0, -1, 'd'), (0, 1, 'u')]:
-        nx, ny = x + dx, y + dy
-        if 0 <= nx < len(matrix[0]) and 0 <= ny < len(matrix):
-            neighbors.append((nx, ny, d))
-    return neighbors
-
-def generate_graph(the_graph, matrix, x=0, y=0, direction=None, steps = 0, parent_node=None, path=None, depth=10):
-    path = [] if path is None else path
-    neighbors = get_neighbors(x, y, matrix)
-    print((x, y))
-
-    if depth == 0 or (x, y) in path:
-        return
-    my_path = [*path, (x, y, direction, steps)]
-    print_in_arrows(matrix, my_path,(x,y))
-    this_node = the_graph.add_node((x, y, direction, steps), x, y, direction, steps)
-    if parent_node is not None:
-        this_node.connect_to(parent_node, matrix[parent_node.y][parent_node.x])
-        parent_node.connect_to(this_node, matrix[y][x])
-
-    if steps < 3:
-        for x,y,d in neighbors:
-            next_steps = steps + 1 if direction == d or direction is None else 0
-            generate_graph(the_graph, matrix, x, y, d, next_steps, this_node, my_path, depth-1)
-
-
-
-
 
 def part1():
-    global the_data
-    # with open("input/day17.txt") as inputfile:
-    with open("input/day17.sample.txt") as inputfile:
-        the_graph = Graph()
+    with open("input/day17.txt") as inputfile:
+        # with open("input/day17.sample.txt") as inputfile:
         the_data = [[int(x) for x in y] for y in [x.strip() for x in inputfile]]
+        start = (0, 0)
+        end = (len(the_data) - 1, len(the_data[0]) - 1)
+        seen = set()
+        pq = [(0, *start, 0, 0, 0, [(*start, 0, 0)])]
 
-        col_size = len(the_data)
-        row_size = len(the_data[0])
+        while pq:
+            heat_loss, row, col, dir_row, dir_col, steps, path = heapq.heappop(pq)
 
-        # # Build the graph
+            if (row, col) == end:
+                print(heat_loss)
+                # print(path)
+                print(f"Sum of displayed path: {sum_path(the_data, [(state[1], state[0]) for state in path][1:])}")
+                print_in_arrows(the_data, path)
 
-        generate_graph(the_graph, the_data)
+                break
+
+            # If we've seen this state before, discard
+            if (row, col, dir_row, dir_col, steps) in seen:
+                continue
+            seen.add((row, col, dir_row, dir_col, steps))
+            # print((row, col, dir_row, dir_col, steps))
+            # if we have steps left, and aren't idle
+            if steps < 3 and (dir_row, dir_col) != (0, 0):
+                next_row, next_column = (row + dir_row, col + dir_col)
+                if 0 <= next_row < len(the_data) and 0 <= next_column < len(the_data[0]):
+                    new_heat_loss = heat_loss + the_data[next_row][next_column]
+                    heapq.heappush(pq, (new_heat_loss, next_row, next_column, dir_row, dir_col, steps + 1,
+                                        [*path, (next_row, next_column, dir_row, dir_col)]))
+
+            for nr, nc, dr, dc in get_neighbors(row, col, the_data):
+                if (nr, nc) not in [(row + dir_row, col + dir_col), (row - dir_row, col - dir_col)]:
+                    new_heat_loss = heat_loss + the_data[nr][nc]
+                    heapq.heappush(pq, (new_heat_loss
+                                        , nr, nc, dr, dc, 1, [*path, (nr, nc, dr, dc)]))
 
 
-        # for row_index, row in enumerate(the_data):
-        #     for col_index, weight in enumerate(row):
-        #         pass
-
-
-        # for row_index, row in enumerate(the_data):
-        #     for col_index, weight in enumerate(row):
-        #         this_node = the_graph.add_node((col_index, row_index), col_index, row_index)
-        #         my_weight = the_data[row_index][col_index]
-        #
-        #         # Left node
-        #         if(col_index > 0):
-        #             weight = the_data[row_index][col_index-1]
-        #             left_node = the_graph.nodes[(col_index-1, row_index)]
-        #             the_graph.add_edge(this_node, left_node, weight)
-        #             the_graph.add_edge(left_node, this_node, my_weight)
-        #
-        #         # Up node
-        #         if(row_index > 0):
-        #             weight = the_data[row_index-1][col_index]
-        #             up_node = the_graph.nodes[(col_index, row_index-1)]
-        #             the_graph.add_edge(this_node, up_node, weight)
-        #             the_graph.add_edge(up_node, this_node, my_weight)
-
-        end_distance, end_path = the_graph.shortest_path(the_graph.node_at(0,0), the_graph.node_at(row_size-1, col_size-1))
-        print(end_path)
-        print_in_technicolor(the_data, end_path)
-        print(f"End weight: {end_distance}")
-        print(sum_path(the_data, end_path))
-        # print()
-        # print(the_graph)
-
-                # print(col_index, weight)
-            # the_graph.ad
-
+# not 1244 or 1241
 def part2():
-    with open("input/day17.sample.txt") as inputfile:
-        for row in inputfile:
-            pass
+    with open("input/day17.txt") as inputfile:
+    # with open("input/day17.sample2.txt") as inputfile:
+        the_data = [[int(x) for x in y] for y in [x.strip() for x in inputfile]]
+        start = (0, 0)
+        end = (len(the_data) - 1, len(the_data[0]) - 1)
+        seen = set()
+        pq = [(0, *start, 0, 0, 0, [(*start, 0, 0)])]
+
+        while pq:
+            heat_loss, row, col, dir_row, dir_col, steps, path = heapq.heappop(pq)
+
+            if (row, col) == end and 3 < steps <= 10:
+                print(heat_loss)
+                # print(path)
+                print(f"Sum of displayed path: {sum_path(the_data, [(state[1], state[0]) for state in path][1:])}")
+                print_in_arrows(the_data, path)
+
+                break
+
+            # If we've seen this state before, discard
+            if (row, col, dir_row, dir_col, steps) in seen:
+                continue
+            seen.add((row, col, dir_row, dir_col, steps))
+            # print((row, col, dir_row, dir_col, steps))
+            # if we have steps left, and aren't idle
+            if steps < 10 and (dir_row, dir_col) != (0, 0):
+                next_row, next_column = (row + dir_row, col + dir_col)
+                if 0 <= next_row < len(the_data) and 0 <= next_column < len(the_data[0]):
+                    new_heat_loss = heat_loss + the_data[next_row][next_column]
+                    heapq.heappush(pq, (new_heat_loss, next_row, next_column, dir_row, dir_col, steps + 1,
+                                        [*path, (next_row, next_column, dir_row, dir_col)]))
+
+            if steps > 3 or (dir_row, dir_col) == (0, 0):
+                for nr, nc, dr, dc in get_neighbors(row, col, the_data):
+                    if (nr, nc) not in [(row + dir_row, col + dir_col), (row - dir_row, col - dir_col)]:
+                        new_heat_loss = heat_loss + the_data[nr][nc]
+                        heapq.heappush(pq, (new_heat_loss
+                                            , nr, nc, dr, dc, 1, [*path, (nr, nc, dr, dc)]))
 
 
 if __name__ == '__main__':
-    part1()
+    part2()
 
 # at most, 3 blocks in a straight line before must turn
 # can't reverse
-
 
 
 #
