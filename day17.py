@@ -1,44 +1,10 @@
 import heapq
 from queue import PriorityQueue
 from colorama import just_fix_windows_console, Fore, Back, Style
-import numpy
 import heapq
 from queue import PriorityQueue, Queue
 
 just_fix_windows_console()
-
-
-def reconstruct_path(came_from, current):
-    if came_from[current] is not None:
-        res = reconstruct_path(came_from, came_from[current])
-        res.append(current)
-        return res
-    else:
-        return [current]
-
-
-def get_last_n_steps(came_from, current, depth=3):
-    if came_from[current] is not None and depth > 0:
-        res = get_last_n_steps(came_from, came_from[current], depth=depth - 1)
-        res.append(current)
-        return res
-    else:
-        return [current]
-
-
-def check_history(matrix, came_from, current, depth=3, x=0, y=0):
-    if came_from[current] is not None and x < depth and y < depth:
-        if came_from[current][0] == current[0]:
-            x += 1
-        else:
-            x = 0
-        if came_from[current][1] == current[1]:
-            y += 1
-        else:
-            y = 0
-        return check_history(matrix, came_from, came_from[current], depth, x=x, y=y)
-    else:
-        return x < depth and y < depth
 
 
 def get_neighbors(r, c, matrix):
@@ -60,21 +26,7 @@ def sum_path(matrix, path):
     return total
 
 
-def print_in_technicolor(data, path, node_of_interest=(-1, -1)):
-    for row_index, row in enumerate(data):
-        for col_index, value in enumerate(row):
-            if (row_index, col_index) == node_of_interest:
-                print(Back.RED + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
-                continue
-            if (row_index, col_index) in path:
-                print(Back.GREEN + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
-                continue
-            print(str(value) + " ", end='')
-        print()
-    print()
-
-
-def print_in_arrows(data, path, node_of_interest=(-1, -1)):
+def print_in_technicolor(data, path, node_of_interest=(-1, -1), arrows=False):
     # in (row, column)
     arrow_map = {
         (0, 0): 'X',
@@ -89,11 +41,16 @@ def print_in_arrows(data, path, node_of_interest=(-1, -1)):
             if (row_index, col_index) == node_of_interest[:2]:
                 print(Back.RED + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
                 continue
+
             if (row_index, col_index) in clean_path:
-                index = clean_path.index((row_index, col_index))
-                path_entry = path[index]
-                print(Back.GREEN + Fore.BLACK + arrow_map[tuple(path_entry[2:4])] + Style.RESET_ALL + " ", end='')
+                if arrows:
+                    index = clean_path.index((row_index, col_index))
+                    path_entry = path[index]
+                    print(Back.GREEN + Fore.BLACK + arrow_map[tuple(path_entry[2:4])] + Style.RESET_ALL + " ", end='')
+                else:
+                    print(Back.GREEN + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
                 continue
+
             print(str(value) + " ", end='')
         print()
     print()
@@ -106,16 +63,16 @@ def part1():
         start = (0, 0)
         end = (len(the_data) - 1, len(the_data[0]) - 1)
         seen = set()
-        pq = [(0, *start, 0, 0, 0, [(*start, 0, 0)])]
+        the_queue = [(0, *start, 0, 0, 0, [(*start, 0, 0)])]
 
-        while pq:
-            heat_loss, row, col, dir_row, dir_col, steps, path = heapq.heappop(pq)
+        while the_queue:
+            heat_loss, row, col, dir_row, dir_col, steps, path = heapq.heappop(the_queue)
 
             if (row, col) == end:
                 print(heat_loss)
                 # print(path)
                 print(f"Sum of displayed path: {sum_path(the_data, [(state[1], state[0]) for state in path][1:])}")
-                print_in_arrows(the_data, path)
+                print_in_technicolor(the_data, path, arrows=True)
 
                 break
 
@@ -129,20 +86,20 @@ def part1():
                 next_row, next_column = (row + dir_row, col + dir_col)
                 if 0 <= next_row < len(the_data) and 0 <= next_column < len(the_data[0]):
                     new_heat_loss = heat_loss + the_data[next_row][next_column]
-                    heapq.heappush(pq, (new_heat_loss, next_row, next_column, dir_row, dir_col, steps + 1,
-                                        [*path, (next_row, next_column, dir_row, dir_col)]))
+                    heapq.heappush(the_queue, (new_heat_loss, next_row, next_column, dir_row, dir_col, steps + 1,
+                                               [*path, (next_row, next_column, dir_row, dir_col)]))
 
             for nr, nc, dr, dc in get_neighbors(row, col, the_data):
                 if (nr, nc) not in [(row + dir_row, col + dir_col), (row - dir_row, col - dir_col)]:
                     new_heat_loss = heat_loss + the_data[nr][nc]
-                    heapq.heappush(pq, (new_heat_loss
-                                        , nr, nc, dr, dc, 1, [*path, (nr, nc, dr, dc)]))
+                    heapq.heappush(the_queue, (new_heat_loss
+                                               , nr, nc, dr, dc, 1, [*path, (nr, nc, dr, dc)]))
 
 
 # not 1244 or 1241
 def part2():
     with open("input/day17.txt") as inputfile:
-    # with open("input/day17.sample2.txt") as inputfile:
+        # with open("input/day17.sample2.txt") as inputfile:
         the_data = [[int(x) for x in y] for y in [x.strip() for x in inputfile]]
         start = (0, 0)
         end = (len(the_data) - 1, len(the_data[0]) - 1)
@@ -156,7 +113,7 @@ def part2():
                 print(heat_loss)
                 # print(path)
                 print(f"Sum of displayed path: {sum_path(the_data, [(state[1], state[0]) for state in path][1:])}")
-                print_in_arrows(the_data, path)
+                print_in_technicolor(the_data, path, arrows=True)
 
                 break
 
