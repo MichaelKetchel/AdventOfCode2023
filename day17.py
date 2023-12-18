@@ -1,6 +1,7 @@
 import heapq
 
-
+from colorama import just_fix_windows_console, Fore, Back, Style
+just_fix_windows_console()
 
 class Node(object):
     def __init__(self, value, x, y):
@@ -56,7 +57,6 @@ class Graph(object):
         distances[start.value] = 0
         paths = {start.value: []}
 
-
         while queue:
             (curr_distance, _, curr_vertex) = heapq.heappop(queue)
             if curr_distance != distances[curr_vertex.value]:
@@ -76,6 +76,16 @@ class Graph(object):
         node_strings = '\n'.join([f"\t {str(node)}" for node in self.nodes.values()])
         return f"Graph:\n {node_strings}"
 
+
+
+def print_in_technicolor(data, path):
+    for row_index, row in enumerate(data):
+        for col_index, value in enumerate(row):
+            if (row_index,col_index) in path:
+                print(Back.GREEN + Fore.BLACK + str(value) + Style.RESET_ALL + " ", end='')
+            else:
+                print(str(value) + " ", end='')
+        print()
 
 
 
@@ -108,7 +118,11 @@ def part1():
                     the_graph.add_edge(this_node, up_node, weight)
                     the_graph.add_edge(up_node, this_node, my_weight)
 
-        print(the_graph.shortest_path(the_graph.node_at(0,0), the_graph.node_at(row_size-1, col_size-1)))
+        end_distance, end_path = the_graph.shortest_path(the_graph.node_at(0,0), the_graph.node_at(row_size-1, col_size-1))
+        print(end_path)
+        print_in_technicolor(the_data, end_path)
+        print(f"End weight: {end_distance}")
+        # print()
         # print(the_graph)
 
                 # print(col_index, weight)
