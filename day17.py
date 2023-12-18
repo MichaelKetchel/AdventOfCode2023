@@ -20,9 +20,7 @@ def sum_path(matrix, path):
     total = 0
     for step in path:
         x, y = step
-        # print(matrix[y][x], end='')
         total += matrix[y][x]
-    print()
     return total
 
 
