@@ -160,20 +160,20 @@ def part2(input_path="input/day19.sample.txt"):
 
     counter = 0
     results = []
-    with Pool(processes=4) as pool:
+    process_count = 16
+    pool_size = math.ceil(4000/process_count)
+
+    # print([
+    #          range(o*pool_size + 1, min((o + 1) * pool_size + 1, 4001)) for o in range(0, process_count)
+    #     ])
+    # exit()
+    with Pool(processes=process_count) as pool:
         # The lists are processed one after another,
         # but the items are processed in parallel.
         results.append(pool.starmap(process_set, [
-            (chain_limits, range(1,1001)),
-            (chain_limits, range(1001,2001)),
-            (chain_limits, range(2001,3001)),
-            (chain_limits, range(3001,4001))
+            (chain_limits, range(o*pool_size + 1, min((o + 1) * pool_size + 1, 4001))) for o in range(0, process_count)
         ]))
         print(results)
-        # counter += pool.starmap(process_set, zip(chain_limits, list(range(1,1001))))
-        # counter += pool.starmap(process_set, zip(chain_limits, list(range(1001,2001))))
-        # counter += pool.starmap(process_set, zip(chain_limits, list(range(2001,3001))))
-        # counter += pool.starmap(process_set, zip(chain_limits, list(range(3001,4001))))
     print(counter)
     print(results)
     exit()
