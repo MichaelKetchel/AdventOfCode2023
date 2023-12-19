@@ -1,7 +1,8 @@
-
 import re, math
 from pprint import pp
 import functools
+
+from multiprocessing import Pool
 
 class Workflow:
     def __init__(self, name, final_rule, rules=None):
@@ -33,6 +34,8 @@ class Workflow:
             next_flow = workflows[self.final_rule]
             flow_res = next_flow.fancy_evaluate(workflows, part)
             return flow_res
+
+
 class Rule:
     def __init__(self, variable, operator, operand, target):
         self.variable = variable
@@ -49,9 +52,10 @@ class Rule:
     def __repr__(self):
         return self.__str__()
 
-def part1():
-    with open("input/day19.tim.txt") as inputfile:
-    # with open("input/day19.txt") as inputfile:
+
+def part1(input_path="input/day19.tim.txt"):
+    with open(input_path) as inputfile:
+        # with open("input/day19.txt") as inputfile:
         workflows = {}
         main_re = r"(?P<name>\w+){(?P<rules>(?:\w+\W\d+:\w+,)+)(?P<final_rule>\w+)}"
         rule_re = r"(?P<variable>\w+)(?P<operator>\W)(?P<operand>\d+):(?P<target>\w+),"
@@ -88,6 +92,7 @@ def part1():
         print(total_part_sum)
     return workflows, parts
 
+
 def explore(workflows, workflow_name='in', rules=None):
     rules = rules if rules else []
     if workflow_name == 'R':
@@ -105,11 +110,24 @@ def explore(workflows, workflow_name='in', rules=None):
         return ret_rules
 
 
+def process_set(limits, x_values=range(1, 4000), m_values=range(1, 4000), a_values=range(1, 4000), s_values=range(1, 4000) ):
+    counter = 0
+    for x in x_values:
+        for m in m_values:
+            print(f"{x},{m}")
+            for a in a_values:
+                for s in s_values:
+                    for limit_set in limits:
+                        if (limit_set['x'][0] <= x <= limit_set['x'][1]
+                                and limit_set['m'][0] <= m <= limit_set['m'][1]
+                                and limit_set['a'][0] <= a <= limit_set['a'][1]
+                                and limit_set['s'][0] <= s <= limit_set['s'][1]):
+                            counter += 1
+    return counter
 
-def part2():
-    workflows, parts = part1()
+def part2(input_path="input/day19.sample.txt"):
+    workflows, parts = part1(input_path)
     print("\nPart 2:")
-
 
     chain_limits = []
     chains = explore(workflows)
@@ -127,7 +145,7 @@ def part2():
                 non_inclusive_limits[rule.variable][1] = operand
             elif rule.operator == '>' and non_inclusive_limits[rule.variable][0] < operand:
                 non_inclusive_limits[rule.variable][0] = operand
-        chain_limits.append({k:[v[0]+1, v[1]-1] for k,v in non_inclusive_limits.items()})
+        chain_limits.append({k: [v[0] + 1, v[1] - 1] for k, v in non_inclusive_limits.items()})
         # pp(non_inclusive_limits)
         # sizes = [mx-mn-2 for mn, mx in non_inclusive_limits.values()]
         # pp(sizes)
@@ -138,8 +156,40 @@ def part2():
     for entry in zip(chains, chain_limits):
         print(f" (\n   {entry[0]},\n   {entry[1]}\n ),")
     print("]")
-        # print(f"{entry[1]} <== {entry[0]}")
+    # print(f"{entry[1]} <== {entry[0]}")
 
+    counter = 0
+    results = []
+    with Pool(processes=4) as pool:
+        # The lists are processed one after another,
+        # but the items are processed in parallel.
+        results.append(pool.starmap(process_set, [
+            (chain_limits, range(1,1001)),
+            (chain_limits, range(1001,2001)),
+            (chain_limits, range(2001,3001)),
+            (chain_limits, range(3001,4001))
+        ]))
+        print(results)
+        # counter += pool.starmap(process_set, zip(chain_limits, list(range(1,1001))))
+        # counter += pool.starmap(process_set, zip(chain_limits, list(range(1001,2001))))
+        # counter += pool.starmap(process_set, zip(chain_limits, list(range(2001,3001))))
+        # counter += pool.starmap(process_set, zip(chain_limits, list(range(3001,4001))))
+    print(counter)
+    print(results)
+    exit()
+
+    def get_intersection(chain_a, chain_b):
+        return {k: [max(chain_a[k][0], chain_b[k][0]), min(chain_a[k][1], chain_b[k][1])] for k, v in chain_a.items()}
+
+    def get_combinations(chain_a):
+        return math.prod([max(v) - min(v) + 1 for v in chain_a.values()])
+
+    inter = get_intersection(chain_limits[0], chain_limits[1])
+    print(inter)
+    combos = get_combinations(chain_limits[0]) + get_combinations(chain_limits[0]) - get_combinations(inter)
+    print(f"Actual:  {combos}")
+    print(f"Correct: {167409079868000}")
+    print(combos == 167409079868000)
 
     # def multinomial_coefficient_single(data):
     #     total_values = sum([max(v) - min(v) + 1 for v in data.values()])
@@ -165,7 +215,7 @@ def part2():
 
     # sample val: 167409079868000
     # compare to: 86271264186651
+
+
 if __name__ == '__main__':
     part2()
-
-
